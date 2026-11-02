@@ -254,8 +254,12 @@ jobs:
             # comment exists.
             #
             # Exclude terminal labels: accepted, rejected, validation-failed, published,
-            # duplicate. Also exclude publish-failed (tier 1), review-error, pending-review,
-            # and editorial-hold.
+            # duplicate. Also exclude publish-failed (tier 1), review-error, and
+            # editorial-hold.
+            #
+            # NOTE: pending-review is NOT excluded here. The gating loop below will
+            # skip unapproved submissions, and approved ones (with approved-for-review
+            # label) will pass through even if they still have pending-review.
             #
             # NOTE: We check labels first to avoid expensive comment API calls. Only
             # issues that pass the label filter check for bot comments.
@@ -267,7 +271,7 @@ jobs:
                 --label "submission" \
                 --limit 500 \
                 --json number,labels \
-                --jq 'map(select(.labels | map(.name) | (contains(["accepted"]) or contains(["rejected"]) or contains(["validation-failed"]) or contains(["publish-failed"]) or contains(["review-error"]) or contains(["pending-review"]) or contains(["editorial-hold"]) or contains(["published"]) or contains(["duplicate"])) | not)) | .[].number' \
+                --jq 'map(select(.labels | map(.name) | (contains(["accepted"]) or contains(["rejected"]) or contains(["validation-failed"]) or contains(["publish-failed"]) or contains(["review-error"]) or contains(["editorial-hold"]) or contains(["published"]) or contains(["duplicate"])) | not)) | .[].number' \
                 2>/dev/null || true)
               
               for C in $CANDIDATES; do
@@ -449,7 +453,7 @@ jobs:
           gh label create "publish-failed" --color "d73a4a" --description "Review passed; git publish step failed — safe to retry" 2>/dev/null || true
           gh label create "approved-for-review" --color "0e8a16" --description "Maintainer-approved submission ready for AI review" 2>/dev/null || true
           gh label create "editorial-hold" --color "b60205" --description "Submission on hold pending editorial decision" 2>/dev/null || true
-          gh label create "awaiting-approval" --color "fbca04" --description "Submission awaiting maintainer approval" 2>/dev/null || true
+          gh label create "pending-review" --color "fbca04" --description "Submission awaiting maintainer approval" 2>/dev/null || true
       
       # ---------------------------------------------------------------
       # Step 2: Post gating comment (idempotent)
@@ -457,7 +461,7 @@ jobs:
       # Only post if:
       # - No github-actions[bot] comment contains "pubroot:pending-approval"
       #   or the legacy text "Review Pending Approval"
-      # - Issue does not already have awaiting-approval or approved-for-review label
+      # - Issue does not already have pending-review or approved-for-review label
       # ---------------------------------------------------------------
       - name: Post gating comment
         env:
@@ -478,7 +482,7 @@ jobs:
           
           # Check for existing labels
           LABELS=$(gh api "repos/$GITHUB_REPOSITORY/issues/$ISSUE" --jq '.labels[].name')
-          if echo "$LABELS" | grep -q "awaiting-approval\|approved-for-review"; then
+          if echo "$LABELS" | grep -q "pending-review\|approved-for-review"; then
             echo "Issue already has approval-related label, skipping"
             exit 0
           fi
@@ -495,9 +499,9 @@ jobs:
             'No action is needed from you. The 6-hour queue picks it up once approved.' > "$BODY"
           
           gh issue comment "$ISSUE" --repo "$GITHUB_REPOSITORY" --body-file "$BODY"
-          gh issue edit "$ISSUE" --add-label awaiting-approval
+          gh issue edit "$ISSUE" --add-label pending-review
           
-          echo "Posted gating comment and added awaiting-approval label"
+          echo "Posted gating comment and added pending-review label"
   
   # =============================================================================
   # JOB 3: REVIEW AND PUBLISH (Stages 4-6)

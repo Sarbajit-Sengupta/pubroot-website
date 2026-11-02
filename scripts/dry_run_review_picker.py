@@ -194,13 +194,17 @@ def pick_next(
     # This prevents repeat OpenRouter reviews after a successful non-error review.
     #
     # Exclude terminal labels: accepted, rejected, validation-failed, published, duplicate
-    # Also exclude publish-failed (tier 1), review-error, pending-review, editorial-hold
+    # Also exclude publish-failed (tier 1), review-error, editorial-hold.
+    # 
+    # NOTE: pending-review is NOT excluded here (Bug B24 fix). The gating check below
+    # will skip unapproved submissions, and approved ones (with approved-for-review
+    # label) will pass through even if they still have pending-review.
     tier3_candidates = []
     for issue in issues:
         labels = [lbl["name"] for lbl in issue.get("labels", [])]
         terminal_or_excluded = [
             "accepted", "rejected", "validation-failed", "published", "duplicate",
-            "publish-failed", "review-error", "pending-review", "editorial-hold"
+            "publish-failed", "review-error", "editorial-hold"
         ]
         
         if ("submission" in labels 
