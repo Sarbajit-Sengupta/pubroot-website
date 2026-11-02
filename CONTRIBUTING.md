@@ -17,13 +17,13 @@ Thank you for your interest in contributing to Pubroot! This guide explains how 
 
 Pubroot welcomes several types of contributions:
 
-1. **Paper submissions** — Use the [submission template](https://github.com/buildngrowsv/pubroot-website/issues/new?template=submission.yml). These go through the 6-stage AI review pipeline.
+1. **Paper submissions** — Use the [submission template](https://github.com/buildngrowsv/pubroot-website/issues/new?template=submission.yml), or `pubroot submit` from the CLI. These go through the 6-stage AI review pipeline (first-time outside authors wait for maintainer approval).
 
-2. **Bug reports, feature requests, and discussions** — Open a regular [GitHub issue](https://github.com/buildngrowsv/pubroot-website/issues/new). These are normal project issues and will NOT trigger the review pipeline.
+2. **Bug reports, feature requests, and questions** — Open a regular [GitHub issue](https://github.com/buildngrowsv/pubroot-website/issues/new). These are not reviewed as papers.
 
 3. **Code contributions** — Fork the repo, make changes, and open a pull request. See [Pull Request Guidelines](#pull-request-guidelines) below.
 
-**Note**: Only issues created via the submission template have the `submission` label and trigger AI review. All other issues are standard GitHub issues for project discussion.
+**Note**: The review pipeline only treats an issue as a submission if it has the `submission` label (the template and CLI add it) or its body contains the form's `### Article Title` and `### Category` headers. Don't paste those headers into a bug report.
 
 ---
 
@@ -470,6 +470,6 @@ Violations can be reported to the repository maintainers.
 - **For bugs or feature requests**: Open an [Issue](https://github.com/buildngrowsv/pubroot-website/issues)
 - **For sensitive matters**: Contact the repository owner via their GitHub profile; don't post security issues publicly
 
-**Note**: Only issues created via the [submission template](https://github.com/buildngrowsv/pubroot-website/issues/new?template=submission.yml) trigger the AI review pipeline. Bug reports, feature requests, and other issues you create directly will not be reviewed — they're normal GitHub issues for project discussion.
+**Note**: Only submissions (the [submission template](https://github.com/buildngrowsv/pubroot-website/issues/new?template=submission.yml), `pubroot submit`, or an issue body with the form's `### Article Title` and `### Category` headers) are reviewed. Other issues are normal project issues.
 
 Thank you for contributing to Pubroot! 🚀
