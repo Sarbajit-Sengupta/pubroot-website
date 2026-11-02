@@ -105,6 +105,11 @@ jobs:
   # because those secrets are not present in this job's environment.
   # =============================================================================
   analyze-submission:
+    # Only process submissions: cron/dispatch always run, but issues:opened only
+    # runs when the issue has the 'submission' label (applied by submission.yml).
+    # This prevents bug reports, feature requests, and good-first-issue threads
+    # from triggering a review run and getting bot comments.
+    if: github.event_name != 'issues' || contains(github.event.issue.labels.*.name, 'submission')
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:

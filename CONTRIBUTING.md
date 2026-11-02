@@ -13,6 +13,20 @@ Thank you for your interest in contributing to Pubroot! This guide explains how 
 
 ---
 
+## Types of Contributions
+
+Pubroot welcomes several types of contributions:
+
+1. **Paper submissions** — Use the [submission template](https://github.com/buildngrowsv/pubroot-website/issues/new?template=submission.yml). These go through the 6-stage AI review pipeline.
+
+2. **Bug reports, feature requests, and discussions** — Open a regular [GitHub issue](https://github.com/buildngrowsv/pubroot-website/issues/new). These are normal project issues and will NOT trigger the review pipeline.
+
+3. **Code contributions** — Fork the repo, make changes, and open a pull request. See [Pull Request Guidelines](#pull-request-guidelines) below.
+
+**Note**: Only issues created via the submission template have the `submission` label and trigger AI review. All other issues are standard GitHub issues for project discussion.
+
+---
+
 ## How to Submit a Paper
 
 Pubroot accepts articles through a structured GitHub Issue form. The submission is automatically reviewed by a 6-stage AI pipeline.
@@ -21,17 +35,20 @@ Pubroot accepts articles through a structured GitHub Issue form. The submission 
 
 1. **Open the submission form**: [Submit Article](https://github.com/buildngrowsv/pubroot-website/issues/new?template=submission.yml)
 
-2. **Fill out all required fields**:
+2. **Fill out the form** (required unless marked optional):
    - **Article Title** — Clear and descriptive
    - **Category** — Select from the dropdown (format: `journal/topic`, e.g., `ai/llm-benchmarks`)
    - **Submission Type** — Choose from: `original-research`, `case-study`, `benchmark`, `review-survey`, `tutorial`, or `dataset`
-   - **Abstract** — 50-300 words, self-contained summary
-   - **Article Body** — 200+ words in Markdown (use `##` for sections, never `###` which is reserved for form fields)
+   - **AI / Tooling Attribution** — Optional; name the tools/models you used
+   - **Abstract** — Up to 300 words, self-contained summary
+   - **Article Body** — 200+ words in Markdown (`##` sections and `###` subsections are both fine; the parser only splits on the form's own field labels)
    - **Supporting Repository URL** — Optional but strongly recommended (earns 🟢 **Verified Open** badge)
-   - **Commit SHA** — Pin to a specific commit in your repo
+   - **Commit SHA** — Optional; pin to a specific commit in your repo
    - **Repository Visibility** — `public`, `private`, or `no-repo`
+   - **Payment Code** — Optional
+   - **Submission Agreement** — Required checkboxes
 
-3. **Submit** — The review pipeline starts automatically
+3. **Submit** — The review pipeline starts automatically for maintainers, collaborators and allowlisted authors (`.github/REVIEW_ALLOWLIST.txt`). Other first-time authors get a comment saying the submission is waiting for maintainer approval.
 
 ### The 6-Stage Review Pipeline
 
@@ -43,15 +60,15 @@ Every submission passes through these stages sequentially:
 | **2. Novelty Check** | `_review_agent/stage_2_novelty_check.py` | Search arXiv and Semantic Scholar for related work, check internal index for supersession |
 | **3. Repo Analysis** | `_review_agent/stage_3_read_linked_repo.py` | If a repo is linked, read file tree and key source files |
 | **4. Build Prompt** | `_review_agent/stage_4_build_review_prompt.py` | Assemble complete review prompt with calibration examples, novelty context, and type-specific criteria |
-| **5. AI Review** | `_review_agent/stage_5_gemini_grounded_review.py` | Send to Gemini via OpenRouter with web search grounding. Model scores and verifies claims |
+| **5. AI Review** | `_review_agent/stage_5_gemini_grounded_review.py` | Send to an LLM via OpenRouter (default `google/gemini-3.8-flash`, override with `PUBROOT_MODEL`) with the `openrouter:web_search` tool. Model scores and verifies claims |
 | **6. Post & Decide** | `_review_agent/stage_6_post_review_and_decide.py` | Post review as GitHub comment. If accepted (≥6.0/10): create PR, auto-merge, update index. If rejected: close issue with feedback |
 
 ### Scoring Rubric
 
-Articles are scored 0.0–10.0 across six dimensions (each 0.0–1.0):
+Articles get an overall score of 0.0–10.0, plus six dimension scores (each 0.0–1.0; code quality and reproducibility may be null). How much each dimension counts depends on the submission type (see `_build_type_specific_criteria` in stage 4):
 
 - **Methodology** — Rigor of approach, experimental design
-- **Factual Accuracy** — Claims verified via Google Search grounding
+- **Factual Accuracy** — Claims checked with web search
 - **Novelty** — Contribution beyond existing work
 - **Code Quality** — Repository structure, docs, tests, claim alignment
 - **Writing Quality** — Clarity, structure, grammar
@@ -60,6 +77,8 @@ Articles are scored 0.0–10.0 across six dimensions (each 0.0–1.0):
 **Acceptance threshold: 6.0/10.0**
 
 ### Review Time by Reputation
+
+These are the targets published in the submission form and README. They are not guarantees:
 
 - **New Contributor**: ~24 hours
 - **Established** (2+ accepted): ~6 hours
@@ -76,7 +95,7 @@ Articles are scored 0.0–10.0 across six dimensions (each 0.0–1.0):
 4. Fill in all fields with your full updated content
 5. The entire 6-stage review runs again
 
-**Do not** reply to the old issue expecting a re-review — the automation only processes new issues.
+**Do not** reply to the old issue expecting a re-review — automation does not treat comments on the old issue as a new draft.
 
 **If already published**:
 - **Small fixes** (typos, broken links): Open a PR editing `papers/{journal}/{topic}/{slug}/index.md`
@@ -96,11 +115,13 @@ See [Editorial Guidelines — Figures](https://pubroot.com/editorial-guidelines/
 
 ## How to Submit a Priorroot Disclosure
 
-**Priorroot** is Pubroot's defensive disclosure system for prior art. It publishes structured, enabling disclosures that create citable prior art under 35 U.S.C. § 102, anticipating method-of-use patents before they are filed.
+**Priorroot** is Pubroot's defensive disclosure section. It publishes structured, dated, enabling disclosures intended to serve as public prior art that patent examiners and courts can reference.
+
+> **Not legal advice.** As the [Priorroot page](https://pubroot.com/priorroot/) says, defensive disclosure is a structured publication practice, not a guarantee of patent outcomes, and Pubroot does not provide legal counsel. Ask a qualified patent professional if you are relying on a disclosure for legal purposes.
 
 ### What is Priorroot?
 
-Priorroot prevents known compounds, devices, and software methods from being fenced off by method-of-use patents. Every disclosure is:
+Priorroot aims to keep known compounds, devices, and software methods in the public domain. Every published disclosure is:
 - AI-reviewed for completeness and enabling detail
 - Date-stamped when published
 - Placed in the public domain under CC0
@@ -132,21 +153,16 @@ Priorroot uses the **same submission template** as regular Pubroot papers. The k
 
 ### Review Criteria for Disclosures
 
-Priorroot disclosures are judged on:
-- **Enabling detail** (critical) — Can someone skilled in the art reproduce this?
-- **Prior knowledge evidence** — Citations, dates, or documentation showing it was already known
-- **Completeness** — All relevant parameters, conditions, and context documented
-
-The acceptance threshold is the same (6.0/10), but the rubric weights differ from research papers.
+Today there is **no Priorroot-specific rubric**. Disclosures go through the same pipeline and are scored with the rubric for the **submission type** you choose. The acceptance threshold is the same (6.0/10). To be useful as a disclosure, write it so that:
+- **Enabling detail** — someone skilled in the art could reproduce the method, device, or composition (the [Priorroot page](https://pubroot.com/priorroot/) sets this standard)
+- **Sources** — the citations, dates, or documentation behind each claim are given
+- **Completeness** — the relevant parameters, conditions, and context are documented
 
 ### Future Development
 
-As of November 2026, Priorroot submissions follow the standard pipeline. Planned enhancements include:
-- Dedicated Priorroot submission form with prior-art-specific fields
-- Automated prior art database cross-checks (USPTO, EPO, patent literature)
-- Chemical structure and device diagram validation
+Priorroot submissions currently follow the standard pipeline. [`ROADMAP.md`](ROADMAP.md) tracks a proposed `disclosure` submission type, with criteria focused on completeness and public availability rather than novelty. It is not built yet.
 
-For questions about Priorroot, open an issue in this repository or email the maintainers.
+For questions about Priorroot, open an issue in this repository.
 
 ---
 
@@ -164,10 +180,10 @@ The review pipeline is modular and open to community improvements. Changes to sc
 
 ### Proposal Process
 
-1. **Open a Discussion or Issue First**
+1. **Open an Issue First**
    - Describe the problem: What's broken, unclear, or missing?
    - Propose your solution: What would you change and why?
-   - Tag with `enhancement` or `review-pipeline`
+   - Ask for the `enhancement` label (contributors without triage rights can't set labels)
    - Get feedback from maintainers before implementing
 
 2. **If Approved, Open a Pull Request**
@@ -179,7 +195,7 @@ The review pipeline is modular and open to community improvements. Changes to sc
 
 3. **Code Review**
    - Maintainers will review your PR
-   - Tests must pass (GitHub Actions runs them automatically)
+   - Run the tests locally; no CI workflow runs pytest on PRs today
    - Small, focused PRs are preferred over large rewrites
 
 ### Running Tests
@@ -196,6 +212,9 @@ python3 -m pytest _review_agent/test_stage_1_parse_and_filter.py
 # From _review_agent directory
 cd _review_agent
 python3 -m pytest
+
+# Whole repo (also runs scripts/ and _mcp_server/ tests)
+python3 -m pytest
 ```
 
 **Install test dependencies** (if pytest is not installed):
@@ -209,14 +228,15 @@ Tests include:
 - Stage-by-stage unit tests (`test_stage_*.py`)
 - Integration tests (`test_end_to_end_integration.py`)
 - Bug regression tests (`test_bug_b20_fixes.py`, `test_bug_b23_fixes.py`)
-- Index consistency tests (`test_pubroot_site_paths.py`)
+- URL/slug path helper tests (`test_pubroot_site_paths.py`)
+- Index golden tests (`scripts/test_index_golden.py`)
 
 ### What to Test
 
 When making changes:
 - **Changing stage logic**: Update corresponding `test_stage_N_*.py`
-- **Changing index building**: Run `scripts/test_index_golden.py` and `scripts/validate_index_integrity.py`
-- **Changing calibration**: Add test cases to `test_stage_5_gemini_grounded_review.py`
+- **Changing index building**: Run `python3 -m pytest scripts/test_index_golden.py` and `python3 scripts/validate_index_integrity.py`
+- **Changing calibration**: Update the calibration tests in `test_stage_4_build_review_prompt.py` (stage 4 loads the `_calibration/` examples)
 - **Adding a new journal/topic**: Update `journals.json` and test with stage 1 validation
 
 ---
@@ -225,7 +245,7 @@ When making changes:
 
 ### Prerequisites
 
-- **Python 3.12** (minimum 3.10)
+- **Python 3.12** (the version CI uses; no older version is tested)
 - **Git**
 - **Hugo Extended** (for site builds, optional)
 - **API Keys** (for running the review pipeline):
@@ -265,28 +285,24 @@ export S2_API_KEY="your-semantic-scholar-key"  # Optional
 
 **Run the pipeline on an issue**:
 
-```bash
-cd _review_agent
-python3 review_pipeline_main.py <issue_number>
-```
-
-Example:
+Point `GITHUB_REPOSITORY` at **your own fork** and a test issue there. The pipeline posts comments, adds labels, closes issues, and on acceptance opens and merges a PR in whatever repo it targets. Run it from the **repository root**, because it reads `journals.json` from `GITHUB_WORKSPACE`, or from the current directory when that is unset:
 
 ```bash
-python3 review_pipeline_main.py 42
+python3 _review_agent/review_pipeline_main.py <issue_number>
 ```
-
-This runs all 6 stages on issue #42 and posts the result.
 
 **Run without API keys** (for testing parse/validate stages only):
 
 You can test stages 1-4 without API keys:
 
 ```bash
-# Stage 1: Parse an issue (no API calls)
-python3 -c "from stage_1_parse_and_filter import parse_and_filter_submission; \
-  print(parse_and_filter_submission(42))"
+# Stage 1: parse a saved issue body (no API calls; run from repo root)
+python3 -c "import sys; sys.path.insert(0, '_review_agent'); \
+from stage_1_parse_and_filter import parse_and_filter_submission; \
+print(parse_and_filter_submission(open('issue_body.md').read(), '.', 'your-github-handle'))"
 ```
+
+`parse_and_filter_submission(issue_body, repo_root, issue_author, paper_id=None)` takes the raw issue Markdown, not an issue number.
 
 ### Running Tests
 
@@ -318,15 +334,16 @@ The static site is built with Hugo and deployed to GitHub Pages.
 
 2. **Build the site**:
 
+   From the repository root (same as `publish.yml`):
+
    ```bash
-   cd _site_theme
-   hugo --minify --destination public
+   hugo --source _site_theme --destination ../public --minify
    ```
 
 3. **Serve locally**:
 
    ```bash
-   hugo server --buildDrafts
+   hugo server --source _site_theme --buildDrafts
    ```
 
    Visit `http://localhost:1313`
@@ -336,8 +353,7 @@ The static site is built with Hugo and deployed to GitHub Pages.
 Pagefind generates the client-side search index:
 
 ```bash
-cd _site_theme
-hugo --minify --destination public
+hugo --source _site_theme --destination ../public --minify
 npx pagefind --site public --output-subdir _pagefind
 ```
 
@@ -415,9 +431,8 @@ flake8 _review_agent/ --max-line-length=120
    - Explain any non-obvious implementation choices
    - Note any breaking changes
 
-3. **Wait for CI**:
-   - GitHub Actions runs tests automatically
-   - Fix any failures before requesting review
+3. **Checks**:
+   - No CI workflow runs the test suite on PRs today, so paste your local `pytest` result in the PR description
 
 ### PR Review Process
 
@@ -429,7 +444,7 @@ flake8 _review_agent/ --max-line-length=120
 
 ### After Merge
 
-- Maintainers handle deployment (GitHub Pages auto-deploys on merge to `main`)
+- Maintainers handle deployment (`publish.yml` rebuilds and deploys GitHub Pages when a merge to `main` touches `papers/`, `reviews/`, `_site_theme/`, the index/journal JSON files, or `publish.yml` itself)
 - Your contribution will appear in the site build within minutes
 - Thank you for contributing!
 
@@ -451,8 +466,10 @@ Violations can be reported to the repository maintainers.
 
 ## Questions?
 
-- **For general questions**: Open a [Discussion](https://github.com/buildngrowsv/pubroot-website/discussions)
+- **For general questions**: Open an [Issue](https://github.com/buildngrowsv/pubroot-website/issues) (Discussions are not enabled)
 - **For bugs or feature requests**: Open an [Issue](https://github.com/buildngrowsv/pubroot-website/issues)
-- **For sensitive matters**: Email the maintainers (listed in the repository)
+- **For sensitive matters**: Contact the repository owner via their GitHub profile; don't post security issues publicly
+
+**Note**: Only issues created via the [submission template](https://github.com/buildngrowsv/pubroot-website/issues/new?template=submission.yml) trigger the AI review pipeline. Bug reports, feature requests, and other issues you create directly will not be reviewed — they're normal GitHub issues for project discussion.
 
 Thank you for contributing to Pubroot! 🚀
