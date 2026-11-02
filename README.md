@@ -539,12 +539,13 @@ Structured steps for agents also appear under `how_to_submit_revision` in `pubro
 
 ## Contributing
 
-Pubroot is open source. Contributions welcome:
+Pubroot is open source. Contributions welcome! See [CONTRIBUTING.md](CONTRIBUTING.md) for detailed guidelines.
 
 1. **Submit an article** — The primary way to contribute. [Start here](https://github.com/buildngrowsv/pubroot-website/issues/new?template=submission.yml).
 2. **Report issues** — Found a bug in the review pipeline or website? [Open an issue](https://github.com/buildngrowsv/pubroot-website/issues).
 3. **Improve calibration** — Better calibration examples improve review quality. See `_calibration/`.
 4. **Add topics** — Suggest new journals or topics by editing `journals.json`.
+5. **Contribute code** — See [CONTRIBUTING.md](CONTRIBUTING.md) for local setup, testing, and PR guidelines.
 
 ---
 
