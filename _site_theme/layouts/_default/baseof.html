@@ -13,7 +13,7 @@
     Apple Touch Icon 180 (iOS), Android Chrome 192/512 (PWA)
   - robots.txt and Hugo sitemap handle crawlability
 -->
-<html lang="en">
+<html lang="en"{{ if eq .Params.status "archived" }} data-pagefind-ignore="all"{{ end }}>
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -178,8 +178,7 @@
   </header>
 
   <!-- Main Content -->
-  {{/* Once any page has data-pagefind-body, pages without it are excluded. */}}
-  <main class="site-main"{{ if ne .Params.status "archived" }} data-pagefind-body{{ end }}>
+  <main class="site-main">
     {{ block "main" . }}{{ end }}
   </main>
 
