@@ -194,13 +194,17 @@ def pick_next(
     # This prevents repeat OpenRouter reviews after a successful non-error review.
     #
     # Exclude terminal labels: accepted, rejected, validation-failed, published, duplicate
-    # Also exclude publish-failed (tier 1), review-error, pending-review, editorial-hold
+    # Also exclude publish-failed (tier 1), review-error, editorial-hold.
+    # 
+    # NOTE: pending-review is NOT excluded here (Bug B24 fix). The gating check below
+    # will skip unapproved submissions, and approved ones (with approved-for-review
+    # label) will pass through even if they still have pending-review.
     tier3_candidates = []
     for issue in issues:
         labels = [lbl["name"] for lbl in issue.get("labels", [])]
         terminal_or_excluded = [
             "accepted", "rejected", "validation-failed", "published", "duplicate",
-            "publish-failed", "review-error", "pending-review", "editorial-hold"
+            "publish-failed", "review-error", "editorial-hold"
         ]
         
         if ("submission" in labels 
@@ -239,9 +243,13 @@ def pick_next(
             page += 1
         
         if comments_resp.status_code == 200:
+            # Bug B24: the notify-gated notice is not a review; ignore it, as the
+            # workflow's Tier 3 jq does.
             bot_comments = [
                 c for c in all_comments
                 if c.get("user", {}).get("login") == "github-actions[bot]"
+                and "pubroot:pending-approval" not in (c.get("body") or "")
+                and "Review Pending Approval" not in (c.get("body") or "")
             ]
             
             if bot_comments:
@@ -271,7 +279,9 @@ def pick_next(
     tier4_candidates = []
     for issue in issues:
         labels = [lbl["name"] for lbl in issue.get("labels", [])]
-        if len(labels) == 0:
+        body = issue.get("body") or ""
+        # Same filter as the workflow's Tier 4 (#280): form headers required.
+        if len(labels) == 0 and "### Article Title" in body and "### Category" in body:
             tier4_candidates.append(issue)
     
     for candidate in tier4_candidates:

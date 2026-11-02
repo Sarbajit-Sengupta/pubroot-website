@@ -254,8 +254,12 @@ jobs:
             # comment exists.
             #
             # Exclude terminal labels: accepted, rejected, validation-failed, published,
-            # duplicate. Also exclude publish-failed (tier 1), review-error, pending-review,
-            # and editorial-hold.
+            # duplicate. Also exclude publish-failed (tier 1), review-error, and
+            # editorial-hold.
+            #
+            # NOTE: pending-review is NOT excluded here. The gating loop below will
+            # skip unapproved submissions, and approved ones (with approved-for-review
+            # label) will pass through even if they still have pending-review.
             #
             # NOTE: We check labels first to avoid expensive comment API calls. Only
             # issues that pass the label filter check for bot comments.
@@ -267,7 +271,7 @@ jobs:
                 --label "submission" \
                 --limit 500 \
                 --json number,labels \
-                --jq 'map(select(.labels | map(.name) | (contains(["accepted"]) or contains(["rejected"]) or contains(["validation-failed"]) or contains(["publish-failed"]) or contains(["review-error"]) or contains(["pending-review"]) or contains(["editorial-hold"]) or contains(["published"]) or contains(["duplicate"])) | not)) | .[].number' \
+                --jq 'map(select(.labels | map(.name) | (contains(["accepted"]) or contains(["rejected"]) or contains(["validation-failed"]) or contains(["publish-failed"]) or contains(["review-error"]) or contains(["editorial-hold"]) or contains(["published"]) or contains(["duplicate"])) | not)) | .[].number' \
                 2>/dev/null || true)
               
               for C in $CANDIDATES; do
@@ -283,8 +287,10 @@ jobs:
                 # The previous "|| echo" made failures always succeed with empty string.
                 # The step runs under `bash -e` without pipefail, so test gh's own
                 # status with `if !` (exempt from -e) instead of a pipeline's $?.
+                # Bug B24: ignore the notify-gated "Review Pending Approval" notice; it is
+                # not a review, and counting it would block every approved gated issue.
                 if ! RAW_BOT_COMMENTS=$(gh api "repos/$GITHUB_REPOSITORY/issues/$C/comments" --paginate \
-                  --jq '.[] | select(.user.login == "github-actions[bot]") | {b: .body} | @json' 2>/dev/null); then
+                  --jq '.[] | select(.user.login == "github-actions[bot]") | select(((.body // "") | contains("pubroot:pending-approval") or contains("Review Pending Approval")) | not) | {b: .body} | @json' 2>/dev/null); then
                   echo "  #$C skipped (API call failed)"
                   continue
                 fi
@@ -458,6 +464,8 @@ jobs:
       # - No github-actions[bot] comment contains "pubroot:pending-approval"
       #   or the legacy text "Review Pending Approval"
       # - Issue does not already have awaiting-approval or approved-for-review label
+      #   (NOT pending-review: the form and `pubroot submit` add pending-review at
+      #   creation, so keying on it would suppress the notice for every submission)
       # ---------------------------------------------------------------
       - name: Post gating comment
         env:
@@ -495,7 +503,9 @@ jobs:
             'No action is needed from you. The 6-hour queue picks it up once approved.' > "$BODY"
           
           gh issue comment "$ISSUE" --repo "$GITHUB_REPOSITORY" --body-file "$BODY"
-          gh issue edit "$ISSUE" --add-label awaiting-approval
+          # submission too, so body-only submissions (labels dropped by GitHub) reach
+          # Tier 3 once approved; Tier 4 only sees issues with no labels at all.
+          gh issue edit "$ISSUE" --add-label awaiting-approval --add-label submission
           
           echo "Posted gating comment and added awaiting-approval label"
   

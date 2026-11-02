@@ -756,13 +756,21 @@ def test_picker_tier3_skips_issue_with_review_error_label():
     assert picked is None
 
 
-def test_picker_tier3_skips_issue_with_pending_review_label():
+def test_picker_tier3_handles_pending_review_with_gating():
     """
-    Test that the picker skips issues with pending-review label.
+    Test that Tier 3 picker includes pending-review issues in candidates,
+    then relies on the gating check to determine if they're approved.
+    
+    Bug B24 fix: pending-review is no longer excluded from Tier 3 candidates.
+    Instead, the gating check determines eligibility:
+    - With approved-for-review label (gate passes): issue is picked
+    - Without approved-for-review label (gate fails): issue is skipped with "gated" reason
     """
     from scripts.dry_run_review_picker import pick_next
+    from unittest.mock import patch, Mock
     
-    issues = [
+    # Case 1: pending-review WITHOUT approved-for-review (should be gated)
+    issues_unapproved = [
         {
             "number": 62,
             "title": "[SUBMISSION] Pending Review",
@@ -773,11 +781,48 @@ def test_picker_tier3_skips_issue_with_pending_review_label():
         }
     ]
     
-    gate_fn = lambda issue: {"approved": True, "reason": "test"}
+    gate_fn_fail = lambda issue: {"approved": False, "reason": "needs approved-for-review label"}
     
-    picked, skipped = pick_next(issues, gate_fn, token="fake")
+    with patch('requests.get') as mock_get:
+        mock_resp = Mock()
+        mock_resp.status_code = 200
+        mock_resp.json.return_value = []
+        mock_get.return_value = mock_resp
+        
+        picked, skipped = pick_next(issues_unapproved, gate_fn_fail, token="fake")
     
+    # Should NOT be picked because gating failed
     assert picked is None
+    # Should be in skipped list with gating reason
+    assert len(skipped) == 1
+    assert skipped[0][0] == 62
+    assert "gated" in skipped[0][1]
+    
+    # Case 2: pending-review WITH approved-for-review (should be picked)
+    issues_approved = [
+        {
+            "number": 63,
+            "title": "[SUBMISSION] Approved Pending Review",
+            "labels": [
+                {"name": "submission"},
+                {"name": "pending-review"},
+                {"name": "approved-for-review"},
+            ],
+        }
+    ]
+    
+    gate_fn_pass = lambda issue: {"approved": True, "reason": "approved-for-review label present"}
+    
+    with patch('requests.get') as mock_get:
+        mock_resp = Mock()
+        mock_resp.status_code = 200
+        mock_resp.json.return_value = []
+        mock_get.return_value = mock_resp
+        
+        picked, skipped = pick_next(issues_approved, gate_fn_pass, token="fake")
+    
+    # Should be picked because gating passed
+    assert picked == 63
 
 
 # ============================================================================
