@@ -178,7 +178,8 @@
   </header>
 
   <!-- Main Content -->
-  <main class="site-main">
+  {{/* Once any page has data-pagefind-body, pages without it are excluded. */}}
+  <main class="site-main"{{ if ne .Params.status "archived" }} data-pagefind-body{{ end }}>
     {{ block "main" . }}{{ end }}
   </main>
 
