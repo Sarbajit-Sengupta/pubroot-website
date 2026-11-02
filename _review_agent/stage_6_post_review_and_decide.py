@@ -287,7 +287,7 @@ def post_review_and_decide(
             )
 
             gh.add_labels(issue_number, ["accepted", "published"])
-            _remove_labels_if_present(gh, issue_number, ["review-error", "publish-failed", "pending-review"])
+            _remove_labels_if_present(gh, issue_number, ["review-error", "publish-failed", "pending-review", "awaiting-approval"])
             
             # Close accepted issues with a link to the published paper.
             # This keeps the issue list clean and makes it clear the submission is complete.
@@ -374,7 +374,7 @@ def post_review_and_decide(
         errors.append(f"Failed to update contributors.json: {str(e)}")
 
     gh.add_labels(issue_number, ["rejected"])
-    _remove_labels_if_present(gh, issue_number, ["pending-review"])
+    _remove_labels_if_present(gh, issue_number, ["pending-review", "awaiting-approval"])
     gh.close_issue(issue_number)
     
     return {

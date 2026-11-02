@@ -12,14 +12,17 @@ BUG B24 ROOT CAUSE:
     `pending-review` and `approved-for-review` labels) were never picked.
 
 FIX:
-    1. Workflow now adds `pending-review` label (consistent with other code)
+    1. notify-gated keeps its own `awaiting-approval` marker (pending-review is set
+       at creation, so it cannot be the dedupe key) and also adds `submission`
     2. Tier 3 no longer excludes `pending-review` in jq filter
     3. Gating check determines if issue is approved (has `approved-for-review` label)
+       and Tier 3 ignores the "Review Pending Approval" notice as a bot review
     4. Approved issues are picked even if they still have `pending-review` label
     5. Stage 6 removes `pending-review` when accepting/rejecting (already correct)
 
 FLOW AFTER FIX:
-    1. Untrusted author submits → workflow adds `pending-review` label
+    1. Untrusted author submits (form adds `pending-review`) → notify-gated posts the
+       notice and adds `awaiting-approval`
     2. Tier 3 includes issue as candidate (no longer excluded by jq)
     3. Gating check: fails (no `approved-for-review`), skipped with "gated" reason
     4. Maintainer adds `approved-for-review` label
@@ -30,25 +33,38 @@ FLOW AFTER FIX:
 import pytest
 
 
-def test_workflow_adds_correct_label_name():
-    """
-    Verify workflow uses `pending-review` label, not `awaiting-approval`.
-    
-    This is tested by reading the workflow file and checking the label name.
-    """
+def _notify_gated_section():
     import os
     workflow_path = os.path.join(os.path.dirname(__file__), "..", ".github", "workflows", "review.yml")
     with open(workflow_path, "r") as f:
         workflow = f.read()
-    
-    # Should create pending-review label
-    assert 'gh label create "pending-review"' in workflow
-    
-    # Should add pending-review label
-    assert 'gh issue edit "$ISSUE" --add-label pending-review' in workflow
-    
-    # Should NOT mention awaiting-approval label (old bug)
-    assert 'awaiting-approval' not in workflow.replace('pending-review', 'PENDING')
+    start = workflow.find("notify-gated:")
+    return workflow[start:workflow.find("# JOB 3:", start)]
+
+
+def test_notify_gated_dedupes_on_awaiting_approval_not_pending_review():
+    """
+    The form and `pubroot submit` add pending-review at creation, so notify-gated
+    must key its dedupe and marker on awaiting-approval. Keying on pending-review
+    would skip the notice for every template submission.
+    """
+    section = _notify_gated_section()
+    assert 'gh label create "awaiting-approval"' in section
+    assert 'grep -q "awaiting-approval\\|approved-for-review"' in section
+    assert 'grep -q "pending-review' not in section
+    assert "--add-label awaiting-approval --add-label submission" in section
+
+
+def test_tier3_comment_fetch_ignores_pending_approval_notice():
+    """The workflow's Tier 3 newest-bot-comment check must skip the gating notice."""
+    import os
+    workflow_path = os.path.join(os.path.dirname(__file__), "..", ".github", "workflows", "review.yml")
+    with open(workflow_path, "r") as f:
+        workflow = f.read()
+    tier3 = workflow[workflow.find("TIER 3: unreviewed submissions"):workflow.find("TIER 4:")]
+    fetch = [l for l in tier3.split("\n") if "--jq" in l and "github-actions[bot]" in l][0]
+    assert 'contains("pubroot:pending-approval")' in fetch
+    assert "| not)" in fetch
 
 
 def test_tier3_does_not_exclude_pending_review():
@@ -348,6 +364,55 @@ def test_approved_submission_picked_by_cron():
     # Should be PICKED (approved via label, even with pending-review)
     assert picked == 200, "Approved gated submission should be picked by cron"
     assert len(skipped) == 0
+
+
+def _resp(comments):
+    from unittest.mock import Mock
+    page = Mock(status_code=200)
+    page.json.return_value = comments
+    empty = Mock(status_code=200)
+    empty.json.return_value = []
+    return [page, empty]
+
+
+def test_approved_issue_with_only_gating_notice_is_picked():
+    """
+    Realistic B24 case: notify-gated already posted its notice, then a maintainer
+    added approved-for-review. The notice must not count as a review.
+    """
+    from scripts.dry_run_review_picker import pick_next
+    from unittest.mock import patch
+    issue = {"number": 300, "labels": [{"name": "submission"}, {"name": "pending-review"},
+             {"name": "awaiting-approval"}, {"name": "approved-for-review"}]}
+    notice = {"user": {"login": "github-actions[bot]"},
+              "body": "<!-- pubroot:pending-approval -->\n## \u23f8\ufe0f Review Pending Approval\n..."}
+    with patch("requests.get", side_effect=_resp([notice])):
+        picked, skipped = pick_next([issue], lambda i: {"approved": True, "reason": "t"}, token="fake")
+    assert picked == 300, skipped
+
+
+def test_real_review_after_notice_still_blocks_repick():
+    """A non-error review posted after the notice must still stop a repeat review."""
+    from scripts.dry_run_review_picker import pick_next
+    from unittest.mock import patch
+    issue = {"number": 301, "labels": [{"name": "submission"}, {"name": "approved-for-review"}]}
+    comments = [
+        {"user": {"login": "github-actions[bot]"}, "body": "<!-- pubroot:pending-approval -->"},
+        {"user": {"login": "github-actions[bot]"}, "body": "# AI Peer Review\nScore 7"},
+    ]
+    with patch("requests.get", side_effect=_resp(comments)):
+        picked, skipped = pick_next([issue], lambda i: {"approved": True, "reason": "t"}, token="fake")
+    assert picked is None
+    assert (301, "has non-error bot review") in skipped
+
+
+def test_picker_tier4_requires_form_headers():
+    """Picker Tier 4 matches the workflow (#280): unlabeled non-submissions are ignored."""
+    from scripts.dry_run_review_picker import pick_next
+    bug = {"number": 400, "labels": [], "body": "Steps to reproduce"}
+    sub = {"number": 401, "labels": [], "body": "### Article Title\nX\n### Category\nai"}
+    picked, skipped = pick_next([bug, sub], lambda i: {"approved": True, "reason": "t"}, token="fake")
+    assert picked == 401
 
 
 if __name__ == "__main__":

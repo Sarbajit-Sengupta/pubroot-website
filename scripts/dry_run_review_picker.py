@@ -243,9 +243,13 @@ def pick_next(
             page += 1
         
         if comments_resp.status_code == 200:
+            # Bug B24: the notify-gated notice is not a review; ignore it, as the
+            # workflow's Tier 3 jq does.
             bot_comments = [
                 c for c in all_comments
                 if c.get("user", {}).get("login") == "github-actions[bot]"
+                and "pubroot:pending-approval" not in (c.get("body") or "")
+                and "Review Pending Approval" not in (c.get("body") or "")
             ]
             
             if bot_comments:
@@ -275,7 +279,9 @@ def pick_next(
     tier4_candidates = []
     for issue in issues:
         labels = [lbl["name"] for lbl in issue.get("labels", [])]
-        if len(labels) == 0:
+        body = issue.get("body") or ""
+        # Same filter as the workflow's Tier 4 (#280): form headers required.
+        if len(labels) == 0 and "### Article Title" in body and "### Category" in body:
             tier4_candidates.append(issue)
     
     for candidate in tier4_candidates:

@@ -287,8 +287,10 @@ jobs:
                 # The previous "|| echo" made failures always succeed with empty string.
                 # The step runs under `bash -e` without pipefail, so test gh's own
                 # status with `if !` (exempt from -e) instead of a pipeline's $?.
+                # Bug B24: ignore the notify-gated "Review Pending Approval" notice; it is
+                # not a review, and counting it would block every approved gated issue.
                 if ! RAW_BOT_COMMENTS=$(gh api "repos/$GITHUB_REPOSITORY/issues/$C/comments" --paginate \
-                  --jq '.[] | select(.user.login == "github-actions[bot]") | {b: .body} | @json' 2>/dev/null); then
+                  --jq '.[] | select(.user.login == "github-actions[bot]") | select(((.body // "") | contains("pubroot:pending-approval") or contains("Review Pending Approval")) | not) | {b: .body} | @json' 2>/dev/null); then
                   echo "  #$C skipped (API call failed)"
                   continue
                 fi
@@ -453,7 +455,7 @@ jobs:
           gh label create "publish-failed" --color "d73a4a" --description "Review passed; git publish step failed — safe to retry" 2>/dev/null || true
           gh label create "approved-for-review" --color "0e8a16" --description "Maintainer-approved submission ready for AI review" 2>/dev/null || true
           gh label create "editorial-hold" --color "b60205" --description "Submission on hold pending editorial decision" 2>/dev/null || true
-          gh label create "pending-review" --color "fbca04" --description "Submission awaiting maintainer approval" 2>/dev/null || true
+          gh label create "awaiting-approval" --color "fbca04" --description "Submission awaiting maintainer approval" 2>/dev/null || true
       
       # ---------------------------------------------------------------
       # Step 2: Post gating comment (idempotent)
@@ -461,7 +463,9 @@ jobs:
       # Only post if:
       # - No github-actions[bot] comment contains "pubroot:pending-approval"
       #   or the legacy text "Review Pending Approval"
-      # - Issue does not already have pending-review or approved-for-review label
+      # - Issue does not already have awaiting-approval or approved-for-review label
+      #   (NOT pending-review: the form and `pubroot submit` add pending-review at
+      #   creation, so keying on it would suppress the notice for every submission)
       # ---------------------------------------------------------------
       - name: Post gating comment
         env:
@@ -482,7 +486,7 @@ jobs:
           
           # Check for existing labels
           LABELS=$(gh api "repos/$GITHUB_REPOSITORY/issues/$ISSUE" --jq '.labels[].name')
-          if echo "$LABELS" | grep -q "pending-review\|approved-for-review"; then
+          if echo "$LABELS" | grep -q "awaiting-approval\|approved-for-review"; then
             echo "Issue already has approval-related label, skipping"
             exit 0
           fi
@@ -499,9 +503,11 @@ jobs:
             'No action is needed from you. The 6-hour queue picks it up once approved.' > "$BODY"
           
           gh issue comment "$ISSUE" --repo "$GITHUB_REPOSITORY" --body-file "$BODY"
-          gh issue edit "$ISSUE" --add-label pending-review
+          # submission too, so body-only submissions (labels dropped by GitHub) reach
+          # Tier 3 once approved; Tier 4 only sees issues with no labels at all.
+          gh issue edit "$ISSUE" --add-label awaiting-approval --add-label submission
           
-          echo "Posted gating comment and added pending-review label"
+          echo "Posted gating comment and added awaiting-approval label"
   
   # =============================================================================
   # JOB 3: REVIEW AND PUBLISH (Stages 4-6)
